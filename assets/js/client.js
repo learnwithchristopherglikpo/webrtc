@@ -218,82 +218,83 @@ function send(message){
   }
   connection.send(JSON.stringify(message))
 }
+function successProccess(stream){
+    local_video.srcObject=stream;
 
+    var configuration={
+        "iceServers":[{
+            "url":"stun:stun2.1.google.com:19302"
+        }]
+    }
+    myConn= new webkitRTCPeerConnection(configuration,{optional:[{
+        RtpDataChannels:true
+    }]});
+    
+    dataChannel=myConn.createDataChannel("channel1",{reliable:true})
+    dataChannel.onerror=function(error){
+        console.log("Error :",error);
+    }
+    dataChannel.onmessage=function(event){
+        chatArea.innerHTML += "<div class='left-align' style='display:flex;align-items:center;'><img src='assets/images/other.jpg' style='height:40px;width:40px;' class='caller-image circle'/><div style='font-weight:600;margin:0 5px;'>"+connected_user+"</div>: <div>"+event.data+"</div></div><br/>"
+    }
+    dataChannel.onclose=function(){
+        console.log("Data channel has closed!");
+    }
+    myConn.addStream(stream);
+    myConn.onaddstream=function(e){
+        remote_video.srcObject=e.stream;
+        call_status.innerHTML='<div class="call-status-wrap white-text"> <div class="calling-wrap"> <div class="calling-hang-action"> <div class="videocam-on"> <i class="material-icons teal darken-2 white-text video-toggle">videocam</i> </div> <div class="audio-on"> <i class="material-icons teal darken-2 white-text audio-toggle">mic</i> </div> <div class="call-cancel"> <i class="call-cancel-icon material-icons red darken-3 white-text">call</i></div></div></div></div>';
+        var video_toggle=document.querySelector(".videocam-on");
+        var audio_toggle=document.querySelector(".audio-on");
+        video_toggle.onclick=function(){
+            stream.getVideoTracks()[0].enabled=!(stream.getVideoTracks()[0].enabled);
+
+            var video_toggle_class=document.querySelector(".video-toggle");
+            if(video_toggle_class.innerText=='videocam'){
+                video_toggle_class.innerText='videocam_off';
+            }else{
+                video_toggle_class.innerText='videocam';
+            }
+
+        }
+
+        audio_toggle.onclick=function(){
+            stream.getAudioTracks()[0].enabled=!(stream.getAudioTracks()[0].enabled);
+
+            var audio_toggle_class=document.querySelector(".audio-toggle");
+            if(audio_toggle_class.innerText=='mic'){
+                audio_toggle_class.innerText='mic_off';
+            }else{
+                audio_toggle_class.innerText='mic';
+            }
+
+        }
+
+        hangup();
+    }   
+
+    myConn.onicecandidate = function(event){
+        if(event.candidate){
+            send({
+                type:"candidate",
+                candidate:event.candidate
+            })
+        }
+    }
+}
+
+function errorProcess(error){
+    console.log("getDisplayMedia Error:"+error+"");
+}
 function loginProcess(success){
     if(success===false){
         alert("Try a different username");
     }else{
         
-        navigator.getUserMedia({
+        navigator.mediaDevices.getDisplayMedia({
             video:true,
             audio:true
-        },function(myStream){
-            stream=myStream;
-            local_video.srcObject=myStream;
-
-            var configuration={
-                "iceServers":[{
-                    "url":"stun:stun2.1.google.com:19302"
-                }]
-            }
-            myConn= new webkitRTCPeerConnection(configuration,{optional:[{
-                RtpDataChannels:true
-            }]});
-            
-            dataChannel=myConn.createDataChannel("channel1",{reliable:true})
-            dataChannel.onerror=function(error){
-                console.log("Error :",error);
-            }
-            dataChannel.onmessage=function(event){
-                chatArea.innerHTML += "<div class='left-align' style='display:flex;align-items:center;'><img src='assets/images/other.jpg' style='height:40px;width:40px;' class='caller-image circle'/><div style='font-weight:600;margin:0 5px;'>"+connected_user+"</div>: <div>"+event.data+"</div></div><br/>"
-            }
-            dataChannel.onclose=function(){
-                console.log("Data channel has closed!");
-            }
-            myConn.addStream(stream);
-            myConn.onaddstream=function(e){
-                remote_video.srcObject=e.stream;
-                call_status.innerHTML='<div class="call-status-wrap white-text"> <div class="calling-wrap"> <div class="calling-hang-action"> <div class="videocam-on"> <i class="material-icons teal darken-2 white-text video-toggle">videocam</i> </div> <div class="audio-on"> <i class="material-icons teal darken-2 white-text audio-toggle">mic</i> </div> <div class="call-cancel"> <i class="call-cancel-icon material-icons red darken-3 white-text">call</i></div></div></div></div>';
-                var video_toggle=document.querySelector(".videocam-on");
-                var audio_toggle=document.querySelector(".audio-on");
-                video_toggle.onclick=function(){
-                    stream.getVideoTracks()[0].enabled=!(stream.getVideoTracks()[0].enabled);
-
-                    var video_toggle_class=document.querySelector(".video-toggle");
-                    if(video_toggle_class.innerText=='videocam'){
-                        video_toggle_class.innerText='videocam_off';
-                    }else{
-                        video_toggle_class.innerText='videocam';
-                    }
-
-                }
-
-                audio_toggle.onclick=function(){
-                    stream.getAudioTracks()[0].enabled=!(stream.getAudioTracks()[0].enabled);
-
-                    var audio_toggle_class=document.querySelector(".audio-toggle");
-                    if(audio_toggle_class.innerText=='mic'){
-                        audio_toggle_class.innerText='mic_off';
-                    }else{
-                        audio_toggle_class.innerText='mic';
-                    }
-
-                }
-
-                hangup();
-            }   
-
-            myConn.onicecandidate = function(event){
-                if(event.candidate){
-                    send({
-                        type:"candidate",
-                        candidate:event.candidate
-                    })
-                }
-            }
-        },function(error){
-        console.log(error);
-        });
+        }).then(successProccess,errorProcess);
        
 
     }
